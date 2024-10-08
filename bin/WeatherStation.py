@@ -349,16 +349,16 @@ def update_time():
                 print(get_time() +"Image Cache List "+str(i)+" : "+str(x))
                 i +=1
             if int(config_dic['htmlrotation']) == 1:
-                h_image = h_image.transpose(Image.Transpose.ROTATE_270)
+                h_image = h_image.transpose(Image.ROTATE_270)
         else:
             now_time_path = rootPath.replace("\\","/") +"/nowTime.png"
-            h_image = h_image.transpose(Image.Transpose.ROTATE_90)
+            h_image = h_image.transpose(Image.ROTATE_90)
             
         res_x = int(config_dic['screenresolutionx'])
         res_y = int(config_dic['screenresolutiony'])
-        h_image = h_image.resize((res_x,res_y),resample=Image.Resampling.NEAREST)
+        h_image = h_image.resize((res_x,res_y),resample=Image.NEAREST)
         if int(config_dic['screenrotation']) == 1:
-            h_image = h_image.transpose(Image.Transpose.ROTATE_180)
+            h_image = h_image.transpose(Image.ROTATE_180)
         h_image.save(now_time_path)
         if int(config_dic['htmlserver']) == 0:
             resolution = ",w=" + config_dic['screenresolutionx']
