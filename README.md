@@ -6,6 +6,8 @@
 # 这个版本和原版有以下区别：
 * 增加了Vika表的展示
 * 移除了RSS和Outlook日历功能
+* 移除了失效的Outlook权限获取工具
+* 移除了无关的代码
 
 # 界面展示
 ![微信图片_20241008121523](https://github.com/user-attachments/assets/b3bda8f5-e256-487b-b44a-a2bedaf3ddcc)
