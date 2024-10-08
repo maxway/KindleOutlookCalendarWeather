@@ -85,7 +85,7 @@ def get_temp():
         (r.json()['data']['forecast'][3]['fx']),    #大后日风向20
         (r.json()['data']['forecast'][3]['fl']),    #大后日风级21
 
-        (r.json()['cityInfo']['update_time'])        #更新时间22
+        (r.json()['cityInfo']['updateTime'])        #更新时间22
         ]
     except Exception as e:
         tempList = ["---"]*23
