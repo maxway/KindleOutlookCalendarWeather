@@ -5,17 +5,17 @@ import os
 import http.server
 import socketserver
 import socket
+import time
+import datetime
+import threading
+from configparser import ConfigParser
+import requests
+from PIL import Image,ImageDraw,ImageFont
+from googlesheet import VikaSheet
+
 rootPath = os.path.abspath(os.path.dirname(__file__))
 
 fontPath = rootPath + "/lib/font.ttf"
-import time
-from PIL import Image,ImageDraw,ImageFont
-import datetime
-import requests
-from googlesheet import VikaSheet
-
-import threading
-from configparser import ConfigParser
 
 fontSize16 = ImageFont.truetype(fontPath, 16)
 fontSize20 = ImageFont.truetype(fontPath, 20)
@@ -46,7 +46,6 @@ rootPath = os.path.abspath(os.path.dirname(__file__))
 print(GetTime() + "RootPath: "+ rootPath)
 
 def DatetimeNow():
-    global configDic
     #如果启用网页服务器的话,前一分钟生成好图片
     if int(configDic['htmlserver']) == 1:
         return datetime.datetime.now() + datetime.timedelta(minutes = 1)
@@ -55,7 +54,6 @@ def DatetimeNow():
 
 #获取天气
 def GetTemp():
-    global configDic
     try:                                                                     # 连接超时,6秒，下载文件超时,7秒
         r = requests.get('http://t.weather.itboy.net/api/weather/city/'+configDic['citycode'],timeout=(6,7)) 
         r.encoding = 'utf-8'
@@ -284,7 +282,6 @@ def DrawWeather(draw,Himage):
         draw.text((680,220 + x *155),forecastTemp, font = fontSize20, fill = 0)
 
 def ClearScreen():
-    global configDic
     if int(configDic['htmlserver']) == 0:
         clearPathStr = rootPath.replace("\\","/") +"/black.png"
         resolution = ",w=" + configDic['screenresolutionx']
@@ -297,7 +294,6 @@ def ClearScreen():
     #时间刷新循环
 def UpdateTime():
     global clearCount
-    global configDic
     bgName = ""
     while (True):
         print(GetTime()+'Update Init...', flush=True)
@@ -375,7 +371,6 @@ def UpdateTime():
             
 def NetworkThreading():
     global scheduleDic
-    global configDic
     while (True):
         timeUpdate = DatetimeNow()
         UpdateTemp(timeUpdate)
