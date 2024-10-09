@@ -38,6 +38,8 @@ class VikaSheet:
     def get_titles(self):
         """filter title col"""
         records = self.get_records()
+        if records is None:
+            return None
         titles = []
         for record in records["data"]["records"]:
             fields = record.get("fields", {})
