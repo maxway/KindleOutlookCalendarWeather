@@ -4,6 +4,7 @@ change log:
 * 抽取weather类
 """
 
+import asyncio
 import os
 import http.server
 import socketserver
@@ -205,7 +206,14 @@ def clear_screen():
         os.system("fbink -c")
 
 
-def update_time():
+async def main_update():
+    await asyncio.gather(
+        update_time(),
+        network_threading(),
+    )
+
+
+async def update_time():
     """时间刷新循环"""
     clear_count = 0
     bg_path = ""
@@ -287,12 +295,12 @@ def update_time():
 
         # 0点～7点 7小时后不刷新
         if hour >= 0 and hour <= 6:
-            time.sleep(3600 * (7 - hour))
+            await asyncio.sleep(3600 * (7 - hour))
         else:
-            time.sleep(60)
+            await asyncio.sleep(60)
 
 
-def network_threading():
+async def network_threading():
     """
     数据抓取循环,0到6点每小时抓取1次,其他时间使用todoupdatetime作为抓取间隔
     """
@@ -321,10 +329,8 @@ def network_threading():
             scheduleList = titles
             print(f"{get_time()} Update Vika Sheet...ok", flush=True)
 
-        if 0 <= now.hour <= 6:
-            time.sleep(3600)
-        else:
-            time.sleep(todo_update_time)
+        sleep_duration = 3600 if 0 <= now.hour <= 6 else todo_update_time
+        await asyncio.sleep(sleep_duration)
 
 
 def get_host_ip():
@@ -360,8 +366,11 @@ if int(config_dic.get("htmlserver", "0")) == 1:
     serverThreading = threading.Thread(target=html_server, args=())
     serverThreading.start()
 
-timeThreading = threading.Thread(target=update_time, args=())
-timeThreading.start()
 
-networkThreading = threading.Thread(target=network_threading, args=())
-networkThreading.start()
+asyncio.run(main_update())
+
+# timeThreading = threading.Thread(target=update_time, args=())
+# timeThreading.start()
+
+# networkThreading = threading.Thread(target=network_threading, args=())
+# networkThreading.start()
