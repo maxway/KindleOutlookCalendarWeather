@@ -72,6 +72,24 @@ def day_to_week_name(week_day):
     return week_names.get(week_day, "未知的星期")
 
 
+def draw_image(path, rotate, x, y, width, height):
+    """
+    区域渲染
+
+    Args:
+        path (str): 图片路径
+        x (int): x
+        y (int): y
+        width (int): 宽
+        height (int): 高
+        rotate (bool) : 旋转180度
+    """
+    regin = "" if x is None else f"-x {x} -y {y} -d {width} {height}"
+    os.system(f"eips -c {regin}")
+    r = "-v " if rotate else ""
+    os.system(f"eips {r}-g {path} {regin}")
+
+
 def draw_horizontal_bar(draw, h_image, now):
     """draw the data, temperature, weather etc.
 
@@ -190,49 +208,91 @@ def draw_weather(draw: ImageDraw, h_image: Image, weather_info: WeatherInfo):
         )
 
 
-def clear_screen():
-    """
-    Clears the screen using fbink commands.
-    """
-    if int(config_dic.get("htmlserver", "0")) == 0:
-        clear_path = rootPath.replace("\\", "/") + "/black.png"
-        resolution = ",w=" + config_dic.get("screenresolutionx", "600")
-        fbink_cmd = (
-            f"fbink -c -g file={clear_path}{resolution},halign=center,valign=center"
-        )
-        os.system("fbink -c")
-        os.system(fbink_cmd)
-        os.system("fbink -c")
-        os.system("fbink -c")
-
-
 async def main_update():
-    await asyncio.gather(
-        update_time(),
-        network_threading(),
-    )
+    """
+    main update loop
+    """
+    if int(config_dic.get("htmlserver", "0")) == 1:
+        await asyncio.gather(
+            update_time(),
+            network_threading(),
+        )
+    else:
+        await asyncio.gather(
+            draw_all(),
+            network_threading(),
+        )
+
+
+async def draw_all():
+    """
+    刷新界面
+    """
+    clear_count = 0
+    while True:
+        print(get_time() + "Refresh Screen...", flush=True)
+        res_x = int(config_dic.get("screenresolutionx", "600"))
+        res_y = int(config_dic.get("screenresolutiony", "800"))
+        # 15分钟清空一次屏幕
+        clear_count += 1
+        if clear_count > 15:
+            # 显示背景
+            rotation = int(config_dic.get("screenrotation", "1")) == 1
+            draw_image(f"{rootPath}/pic/bgRss.png", 0, 0, res_x, res_y, rotation)
+            clear_count = 0
+
+            return
+
+        now = datetime_now()
+        # 新建空白图片
+        h_image = Image.new("L", (800, 600), 255)
+        list_image = Image.new("L", (800, 600), 255)
+        draw = ImageDraw.Draw(h_image)
+        list_drawer = ImageDraw.Draw(list_image)
+
+        # 绘制水平栏
+        draw_horizontal_bar(draw, h_image, now)
+        # 绘制日程
+        draw_todo(list_drawer)
+
+        # 绘制天气预报
+        draw_weather(draw, h_image, weather.weatherInfo)
+        img_mask = Image.open(rootPath + "/pic/bgRss_Alpha.png")
+        h_image.paste(list_image, img_mask.getchannel("R"))
+
+        now_time_path = rootPath.replace("\\", "/") + "/nowTime.pgm"
+        h_image = h_image.transpose(Image.ROTATE_90)
+
+        h_image = h_image.resize((res_x, res_y), resample=Image.BILINEAR)
+        if int(config_dic.get("screenrotation", "1")) == 1:
+            h_image = h_image.transpose(Image.ROTATE_180)
+        h_image.save(now_time_path)
+        os.system("eips -c")
+        os.system(f"eips -g {now_time_path}")
+        print(get_time() + "Update Screen...ok", flush=True)
+
+        # 0点～7点 7小时后不刷新
+        # 小时
+        hour = int(now.strftime("%H"))
+        if hour >= 0 and hour <= 6:
+            await asyncio.sleep(3600 * (7 - hour))
+        else:
+            await asyncio.sleep(60)
 
 
 async def update_time():
     """时间刷新循环"""
-    clear_count = 0
     bg_path = ""
     path_list = [""] * 2
     while True:
         print(get_time() + "Update Init...", flush=True)
-        # 10分钟清空一次屏幕
-        clear_count += 1
-        if clear_count > 10:
-            clear_screen()
-            clear_count = 0
+
         now = datetime_now()
         # 时间
         hour_min = now.strftime("%H%M")
-        # 小时
-        hour = int(now.strftime("%H"))
         # 新建空白图片
-        h_image = Image.new("1", (800, 600), 255)
-        list_image = Image.new("1", (800, 600), 255)
+        h_image = Image.new("L", (800, 600), 255)
+        list_image = Image.new("L", (800, 600), 255)
         draw = ImageDraw.Draw(h_image)
         list_drawer = ImageDraw.Draw(list_image)
         # 显示背景
@@ -250,54 +310,32 @@ async def update_time():
         draw_weather(draw, h_image, weather.weatherInfo)
         h_image.paste(list_image, img_mask.getchannel("R"))
 
-        # 画线(x开始值，y开始值，x结束值，y结束值)
-        # draw.rectangle((280, 90, 280, 290), fill = 0)
-        # 反向图片
-        # h_image = ImageChops.invert(h_image)
-        if int(config_dic.get("htmlserver", "0")) == 1:
-            root_path_normalized = rootPath.replace("\\", "/")
-            now_time_path = f"{root_path_normalized}/nowTime{hour_min}.png"
+        root_path_normalized = rootPath.replace("\\", "/")
+        now_time_path = f"{root_path_normalized}/nowTime{hour_min}.png"
 
-            path_list.append(now_time_path)
-            if len(path_list) > 1:
-                try:
-                    os.remove(path_list[0])
-                except OSError as e:
-                    print(f"Error: {e.filename} - {e.strerror}")
-                finally:
-                    del path_list[0]
-            i = 0
-            for x in path_list:
-                print(f"{get_time()} Image Cache List {i} : {x}")
-                i += 1
-            if int(config_dic.get("htmlserver", "0")) == 1:
-                h_image = h_image.transpose(Image.ROTATE_270)
-        else:
-            now_time_path = rootPath.replace("\\", "/") + "/nowTime.png"
-            h_image = h_image.transpose(Image.ROTATE_90)
+        path_list.append(now_time_path)
+        if len(path_list) > 1:
+            try:
+                os.remove(path_list[0])
+            except OSError as e:
+                print(f"Error: {e.filename} - {e.strerror}")
+            finally:
+                del path_list[0]
+        i = 0
+        for x in path_list:
+            print(f"{get_time()} Image Cache List {i} : {x}")
+            i += 1
+        h_image = h_image.transpose(Image.ROTATE_270)
 
         res_x = int(config_dic.get("screenresolutionx", "600"))
         res_y = int(config_dic.get("screenresolutiony", "800"))
-        h_image = h_image.resize((res_x, res_y), resample=Image.NEAREST)
-        if int(config_dic.get("screenrotation", "1")) == 1:
-            h_image = h_image.transpose(Image.ROTATE_180)
+        h_image = h_image.resize((res_x, res_y), resample=Image.BILINEAR)
+        h_image = h_image.transpose(Image.ROTATE_180)
         h_image.save(now_time_path)
-        if int(config_dic.get("htmlserver", "0")) == 0:
-            resolution = ",w=" + config_dic.get("screenresolutionx", "600")
-            fbink_cmd = (
-                "fbink -c -g file="
-                + now_time_path
-                + resolution
-                + ",halign=center,valign=center"
-            )
-            os.system(fbink_cmd)
+
         print(get_time() + "Update Screen...ok", flush=True)
 
-        # 0点～7点 7小时后不刷新
-        if hour >= 0 and hour <= 6:
-            await asyncio.sleep(3600 * (7 - hour))
-        else:
-            await asyncio.sleep(60)
+        await asyncio.sleep(60)
 
 
 async def network_threading():
@@ -359,9 +397,8 @@ weather.update_temp(datetime_now())
 # temp_array = get_temp()
 scheduleList = ["初始化请稍等..."]
 
-clear_screen()
 
-# h_image = Image.new('1', (800, 600), 225)
+# h_image = Image.new('L', (800, 600), 225)
 if int(config_dic.get("htmlserver", "0")) == 1:
     serverThreading = threading.Thread(target=html_server, args=())
     serverThreading.start()
